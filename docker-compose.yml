@@ -1,0 +1,7 @@
+version: "3.5"
+
+services:
+  db:
+    image: postgres:15.3-alpine3.18
+    environment:
+      POSTGRES_PASSWORD: root
