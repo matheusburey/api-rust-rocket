@@ -1,9 +1,20 @@
 [package]
-name = "api-rust-rocket"
+name = "todo-list-rs"
 version = "0.1.0"
 edition = "2021"
 
 
 [dependencies]
-rocket = { version = "=0.5.0-rc.3", features = ["json"] }
-sqlx = { version = "0.7.1", features = ["postgres", "time", "uuid", "macros"] }
+axum = "0.6.20"
+dotenv = "0.15.0"
+serde = { version = "1.0.188", features = ["derive"] }
+sqlx = { version = "0.7.1", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "time",
+] }
+
+tokio = { version = "1.32.0", features = ["full"] }
+
+[dev-dependencies]
+axum-test = "12.2.0"
