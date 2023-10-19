@@ -1,8 +1,8 @@
 use crate::config::settings::Settings;
-use crate::models::user_model::{LoginUser, NewUser, TokenClaims};
+use crate::models::user_model::{LoginUser, NewUser, TokenClaims, User};
 use crate::repository::user_repository::UserRepository;
 
-use axum::extract::{Json, Path, State};
+use axum::extract::{Extension, Json, State};
 use axum::{http::StatusCode, response::IntoResponse};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use std::sync::Arc;
@@ -11,12 +11,8 @@ use jsonwebtoken::{encode, EncodingKey, Header};
 
 type AppState = State<Arc<UserRepository>>;
 
-pub async fn find_user(State(user_repo): AppState, Path(id): Path<i32>) -> impl IntoResponse {
-    match user_repo.find_user(id).await {
-        Ok(Some(user)) => Ok(Json(user)),
-        Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+pub async fn find_user(Extension(current_user): Extension<User>) -> impl IntoResponse {
+    Json(current_user)
 }
 
 pub async fn create_new_user(
@@ -33,17 +29,20 @@ pub async fn create_new_user(
 
 pub async fn update_user(
     State(user_repo): AppState,
-    Path(id): Path<i32>,
+    Extension(current_user): Extension<User>,
     Json(new_user): Json<NewUser>,
 ) -> impl IntoResponse {
-    match user_repo.update_user(id, new_user).await {
+    match user_repo.update_user(current_user.id, new_user).await {
         Ok(user) => Ok(Json(user)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
-pub async fn delete_user(State(user_repo): AppState, Path(id): Path<i32>) -> impl IntoResponse {
-    match user_repo.delete_user(id).await {
+pub async fn delete_user(
+    State(user_repo): AppState,
+    Extension(current_user): Extension<User>,
+) -> impl IntoResponse {
+    match user_repo.delete_user(current_user.id).await {
         Ok(_) => Ok(StatusCode::NO_CONTENT),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -61,7 +60,7 @@ pub async fn login_user(
                 let exp = (now + chrono::Duration::minutes(60)).timestamp() as usize;
 
                 let claims = TokenClaims {
-                    sub: user.id.to_string(),
+                    sub: user.id,
                     exp,
                     iat,
                 };

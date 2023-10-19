@@ -1,13 +1,16 @@
 mod config;
 mod controllers;
+mod middleware;
 mod models;
 mod repository;
 
 use config::settings::Settings;
 use controllers::user_controllers::*;
+use middleware::auth::auth;
 use repository::user_repository::UserRepository;
 
 use axum::{
+    middleware::from_fn_with_state,
     routing::{get, post},
     Router,
 };
@@ -19,8 +22,11 @@ async fn app(repo_arch: Arc<UserRepository>) -> Router {
         .route("/login", post(login_user))
         .route("/users", post(create_new_user))
         .route(
-            "/users/:id",
-            get(find_user).patch(update_user).delete(delete_user),
+            "/users",
+            get(find_user)
+                .patch(update_user)
+                .delete(delete_user)
+                .route_layer(from_fn_with_state(repo_arch.clone(), auth)),
         )
         .with_state(repo_arch)
 }
