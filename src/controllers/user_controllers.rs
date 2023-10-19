@@ -1,54 +1,82 @@
-use crate::models::user_model::NewUser;
-use crate::repository::user_repository::PostgresRepository;
+use crate::config::settings::Settings;
+use crate::models::user_model::{LoginUser, NewUser, TokenClaims};
+use crate::repository::user_repository::UserRepository;
 
 use axum::extract::{Json, Path, State};
 use axum::{http::StatusCode, response::IntoResponse};
+use bcrypt::{hash, verify, DEFAULT_COST};
 use std::sync::Arc;
 
-type AppState = Arc<PostgresRepository>;
+use jsonwebtoken::{encode, EncodingKey, Header};
 
-pub async fn get_all_persons(State(people): State<AppState>) -> impl IntoResponse {
-    match people.get_all_persons().await {
-        Ok(people) => Ok(Json(people)),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
+type AppState = State<Arc<UserRepository>>;
 
-pub async fn find_person(State(people): State<AppState>, Path(id): Path<i32>) -> impl IntoResponse {
-    match people.find_person(id).await {
-        Ok(Some(person)) => Ok(Json(person)),
+pub async fn find_user(State(user_repo): AppState, Path(id): Path<i32>) -> impl IntoResponse {
+    match user_repo.find_user(id).await {
+        Ok(Some(user)) => Ok(Json(user)),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
-pub async fn create_person(
-    State(db): State<AppState>,
-    Json(new_person): Json<NewUser>,
+pub async fn create_new_user(
+    State(user_repo): AppState,
+    Json(mut new_user): Json<NewUser>,
 ) -> impl IntoResponse {
-    match db.create_person(new_person).await {
-        Ok(person) => Ok((StatusCode::CREATED, Json(person))),
+    new_user.password = hash(new_user.password, DEFAULT_COST).expect("");
+
+    match user_repo.create_user(new_user).await {
+        Ok(user) => Ok((StatusCode::CREATED, Json(user))),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
-pub async fn update_person(
-    State(people): State<AppState>,
+pub async fn update_user(
+    State(user_repo): AppState,
     Path(id): Path<i32>,
-    Json(new_person): Json<NewUser>,
+    Json(new_user): Json<NewUser>,
 ) -> impl IntoResponse {
-    match people.update_person(id, new_person).await {
-        Ok(person) => Ok(Json(person)),
+    match user_repo.update_user(id, new_user).await {
+        Ok(user) => Ok(Json(user)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
-pub async fn delete_person(
-    State(people): State<AppState>,
-    Path(id): Path<i32>,
-) -> impl IntoResponse {
-    match people.delete_person(id).await {
+pub async fn delete_user(State(user_repo): AppState, Path(id): Path<i32>) -> impl IntoResponse {
+    match user_repo.delete_user(id).await {
         Ok(_) => Ok(StatusCode::NO_CONTENT),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+pub async fn login_user(
+    State(user_repo): AppState,
+    Json(user_login): Json<LoginUser>,
+) -> impl IntoResponse {
+    match user_repo.find_user_by_email(user_login.email).await {
+        Ok(Some(user)) => {
+            if verify(user_login.password, &user.password).is_ok() {
+                let now = chrono::Utc::now();
+                let iat = now.timestamp() as usize;
+                let exp = (now + chrono::Duration::minutes(60)).timestamp() as usize;
+
+                let claims = TokenClaims {
+                    sub: user.id.to_string(),
+                    exp,
+                    iat,
+                };
+                let token = encode(
+                    &Header::default(),
+                    &claims,
+                    &EncodingKey::from_secret(Settings::from_env().jwt_secret.as_bytes()),
+                )
+                .unwrap();
+                Ok(serde_json::json!({"status": "success", "token": token}).to_string())
+            } else {
+                Err(StatusCode::BAD_REQUEST)
+            }
+        }
+        Ok(None) => Err(StatusCode::BAD_REQUEST),
+        Err(_) => Err(StatusCode::BAD_REQUEST),
     }
 }

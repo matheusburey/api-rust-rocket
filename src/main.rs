@@ -1,28 +1,35 @@
+mod config;
 mod controllers;
 mod models;
 mod repository;
 
+use config::settings::Settings;
 use controllers::user_controllers::*;
-use repository::user_repository::PostgresRepository;
+use repository::user_repository::UserRepository;
 
-use axum::{routing::get, Router};
-use dotenv::dotenv;
-use std::{env, sync::Arc};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
-async fn app(repo_arch: Arc<PostgresRepository>) -> Router {
+use std::sync::Arc;
+
+async fn app(repo_arch: Arc<UserRepository>) -> Router {
     Router::new()
-        .route("/users", get(get_all_persons).post(create_person))
+        .route("/login", post(login_user))
+        .route("/users", post(create_new_user))
         .route(
             "/users/:id",
-            get(find_person).patch(update_person).delete(delete_person),
+            get(find_user).patch(update_user).delete(delete_user),
         )
         .with_state(repo_arch)
 }
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
-    let repo = PostgresRepository::connect(env::var("DB_URL").expect("DB_URL")).await;
+    let settings = Settings::from_env();
+
+    let repo = UserRepository::connect(settings.db_url).await;
     let repo_arch = Arc::new(repo);
 
     axum::Server::bind(&"0.0.0.0:8000".parse().unwrap())
@@ -41,19 +48,9 @@ mod tests {
     use axum::http::StatusCode;
 
     async fn create_server() -> TestServer {
-        dotenv().ok();
-        let repo = PostgresRepository::connect(env::var("DB_URL_TEST").expect("DB_URL_TEST")).await;
-        let repo_arch = Arc::new(repo);
-        TestServer::new(app(repo_arch).await.into_make_service()).unwrap()
-    }
-
-    #[tokio::test]
-    async fn get_all_persons_test() {
-        let server = create_server().await;
-
-        let response = server.get("/users").await;
-        println!("{:?}", response.text());
-        assert_eq!(response.status_code(), StatusCode::OK);
+        let settings = Settings::from_env();
+        let repo = UserRepository::connect(settings.db_url).await;
+        TestServer::new(app(Arc::new(repo)).await.into_make_service()).unwrap()
     }
 
     #[tokio::test]
@@ -62,7 +59,7 @@ mod tests {
 
         let new_user = NewUserTest {
             name: "João".to_string(),
-            username: "kakashi".to_string(),
+            email: "kakashi".to_string(),
             password: "123".to_string(),
         };
 
@@ -86,7 +83,7 @@ mod tests {
 
         let people = NewUserTest {
             name: "João".to_string(),
-            username: "kakashi".to_string(),
+            email: "kakashi".to_string(),
             password: "123".to_string(),
         };
 

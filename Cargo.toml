@@ -7,13 +7,17 @@ edition = "2021"
 [dependencies]
 axum = "0.6.20"
 bcrypt = "0.15.0"
+chrono = { version = "0.4.31", features = ["serde"] }
 dotenv = "0.15.0"
+jsonwebtoken = "9.0.0"
 serde = { version = "1.0.188", features = ["derive"] }
+serde_json = "1.0.107"
 sqlx = { version = "0.7.1", features = [
     "runtime-tokio-rustls",
     "postgres",
     "time",
     "migrate",
+    "chrono",
 ] }
 
 tokio = { version = "1.32.0", features = ["full"] }
