@@ -4,10 +4,9 @@ mod middleware;
 mod models;
 mod repository;
 
-use config::settings::Settings;
+use config::{database::DatabaseConn, settings::Settings};
 use controllers::user_controllers::*;
 use middleware::auth::auth;
-use repository::user_repository::UserRepository;
 
 use axum::{
     middleware::from_fn_with_state,
@@ -17,7 +16,7 @@ use axum::{
 
 use std::sync::Arc;
 
-async fn app(repo_arch: Arc<UserRepository>) -> Router {
+async fn app(repo_arch: Arc<DatabaseConn>) -> Router {
     Router::new()
         .route("/login", post(login_user))
         .route("/users", post(create_new_user))
@@ -35,11 +34,10 @@ async fn app(repo_arch: Arc<UserRepository>) -> Router {
 async fn main() {
     let settings = Settings::from_env();
 
-    let repo = UserRepository::connect(settings.db_url).await;
-    let repo_arch = Arc::new(repo);
+    let conn_db = DatabaseConn::connect(settings.db_url).await;
 
     axum::Server::bind(&"0.0.0.0:8000".parse().unwrap())
-        .serve(app(repo_arch).await.into_make_service())
+        .serve(app(Arc::new(conn_db)).await.into_make_service())
         .await
         .unwrap();
 }
@@ -55,7 +53,7 @@ mod tests {
 
     async fn create_server() -> TestServer {
         let settings = Settings::from_env();
-        let repo = UserRepository::connect(settings.db_url).await;
+        let repo = DatabaseConn::connect(settings.db_url).await;
         TestServer::new(app(Arc::new(repo)).await.into_make_service()).unwrap()
     }
 

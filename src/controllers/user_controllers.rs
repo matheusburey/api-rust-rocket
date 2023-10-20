@@ -1,4 +1,4 @@
-use crate::config::settings::Settings;
+use crate::config::{database::DatabaseConn, settings::Settings};
 use crate::models::user_model::{LoginUser, NewUser, TokenClaims, User};
 use crate::repository::user_repository::UserRepository;
 
@@ -9,17 +9,19 @@ use std::sync::Arc;
 
 use jsonwebtoken::{encode, EncodingKey, Header};
 
-type AppState = State<Arc<UserRepository>>;
+type AppState = State<Arc<DatabaseConn>>;
 
 pub async fn find_user(Extension(current_user): Extension<User>) -> impl IntoResponse {
     Json(current_user)
 }
 
 pub async fn create_new_user(
-    State(user_repo): AppState,
+    State(db): AppState,
     Json(mut new_user): Json<NewUser>,
 ) -> impl IntoResponse {
     new_user.password = hash(new_user.password, DEFAULT_COST).expect("");
+
+    let user_repo = UserRepository::new(db.pool()).await;
 
     match user_repo.create_user(new_user).await {
         Ok(user) => Ok((StatusCode::CREATED, Json(user))),
@@ -28,10 +30,11 @@ pub async fn create_new_user(
 }
 
 pub async fn update_user(
-    State(user_repo): AppState,
+    State(db): AppState,
     Extension(current_user): Extension<User>,
     Json(new_user): Json<NewUser>,
 ) -> impl IntoResponse {
+    let user_repo = UserRepository::new(db.pool()).await;
     match user_repo.update_user(current_user.id, new_user).await {
         Ok(user) => Ok(Json(user)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -39,9 +42,10 @@ pub async fn update_user(
 }
 
 pub async fn delete_user(
-    State(user_repo): AppState,
+    State(db): AppState,
     Extension(current_user): Extension<User>,
 ) -> impl IntoResponse {
+    let user_repo = UserRepository::new(db.pool()).await;
     match user_repo.delete_user(current_user.id).await {
         Ok(_) => Ok(StatusCode::NO_CONTENT),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -49,9 +53,10 @@ pub async fn delete_user(
 }
 
 pub async fn login_user(
-    State(user_repo): AppState,
+    State(db): AppState,
     Json(user_login): Json<LoginUser>,
 ) -> impl IntoResponse {
+    let user_repo = UserRepository::new(db.pool()).await;
     match user_repo.find_user_by_email(user_login.email).await {
         Ok(Some(user)) => {
             if verify(user_login.password, &user.password).is_ok() {

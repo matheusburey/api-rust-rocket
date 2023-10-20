@@ -1,4 +1,4 @@
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::PgPool;
 
 use crate::models::user_model::{NewUser, User};
 
@@ -7,14 +7,8 @@ pub struct UserRepository {
 }
 
 impl UserRepository {
-    pub async fn connect(url: String) -> Self {
-        UserRepository {
-            pool: PgPoolOptions::new()
-                .max_connections(5)
-                .connect(&url)
-                .await
-                .unwrap(),
-        }
+    pub async fn new(pool: PgPool) -> Self {
+        UserRepository { pool }
     }
 
     pub async fn find_user(&self, id: i32) -> Result<Option<User>, sqlx::Error> {
