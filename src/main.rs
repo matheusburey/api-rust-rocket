@@ -17,6 +17,11 @@ async fn main() {
 
     let conn_db = DatabaseConn::connect(settings.db_url).await;
 
+    sqlx::migrate!("./migrations")
+        .run(&conn_db.pool())
+        .await
+        .unwrap();
+
     axum::Server::bind(&"0.0.0.0:8000".parse().unwrap())
         .serve(app(Arc::new(conn_db)).await.into_make_service())
         .await
@@ -35,6 +40,10 @@ mod tests {
     async fn create_server() -> TestServer {
         let settings = Settings::from_env();
         let repo = DatabaseConn::connect(settings.db_url).await;
+        sqlx::migrate!("./migrations")
+            .run(&repo.pool())
+            .await
+            .unwrap();
         TestServer::new(app(Arc::new(repo)).await.into_make_service()).unwrap()
     }
 
