@@ -3,32 +3,13 @@ mod controllers;
 mod middleware;
 mod models;
 mod repository;
+mod routes;
+mod types;
 
 use config::{database::DatabaseConn, settings::Settings};
-use controllers::user_controllers::*;
-use middleware::auth::auth;
-
-use axum::{
-    middleware::from_fn_with_state,
-    routing::{get, post},
-    Router,
-};
+use routes::router::app;
 
 use std::sync::Arc;
-
-async fn app(repo_arch: Arc<DatabaseConn>) -> Router {
-    Router::new()
-        .route("/login", post(login_user))
-        .route("/users", post(create_new_user))
-        .route(
-            "/users",
-            get(find_user)
-                .patch(update_user)
-                .delete(delete_user)
-                .route_layer(from_fn_with_state(repo_arch.clone(), auth)),
-        )
-        .with_state(repo_arch)
-}
 
 #[tokio::main]
 async fn main() {
