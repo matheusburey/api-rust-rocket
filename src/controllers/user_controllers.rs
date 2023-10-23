@@ -1,15 +1,14 @@
-use crate::config::{database::DatabaseConn, settings::Settings};
-use crate::models::user_model::{LoginUser, NewUser, TokenClaims, User};
+use crate::config::settings::Settings;
+use crate::models::user_model::{LoginUser, NewUser, User};
 use crate::repository::user_repository::UserRepository;
+use crate::types::database::AppState;
+use crate::types::token::ITokenClaims;
 
 use axum::extract::{Extension, Json, State};
 use axum::{http::StatusCode, response::IntoResponse};
 use bcrypt::{hash, verify, DEFAULT_COST};
-use std::sync::Arc;
 
 use jsonwebtoken::{encode, EncodingKey, Header};
-
-type AppState = State<Arc<DatabaseConn>>;
 
 pub async fn find_user(Extension(current_user): Extension<User>) -> impl IntoResponse {
     Json(current_user)
@@ -64,7 +63,7 @@ pub async fn login_user(
                 let iat = now.timestamp() as usize;
                 let exp = (now + chrono::Duration::minutes(60)).timestamp() as usize;
 
-                let claims = TokenClaims {
+                let claims = ITokenClaims {
                     sub: user.id,
                     exp,
                     iat,

@@ -1,7 +1,3 @@
-use crate::config::{database::DatabaseConn, settings::Settings};
-use crate::models::user_model::TokenClaims;
-use crate::repository::user_repository::UserRepository;
-
 use axum::{
     extract::State,
     http::{Request, StatusCode},
@@ -9,12 +5,13 @@ use axum::{
     response::Response,
 };
 use jsonwebtoken::{decode, DecodingKey, Validation};
-use std::sync::Arc;
 
-type AppState = Arc<DatabaseConn>;
+use crate::repository::user_repository::UserRepository;
+use crate::types::database::AppState;
+use crate::{config::settings::Settings, types::token::ITokenClaims};
 
 pub async fn auth<B>(
-    State(db): State<AppState>,
+    State(db): AppState,
     mut req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, StatusCode> {
@@ -29,7 +26,7 @@ pub async fn auth<B>(
         return Err(StatusCode::UNAUTHORIZED);
     };
 
-    let claims = decode::<TokenClaims>(
+    let claims = decode::<ITokenClaims>(
         token,
         &DecodingKey::from_secret(Settings::from_env().jwt_secret.as_bytes()),
         &Validation::default(),

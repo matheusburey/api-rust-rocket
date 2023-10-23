@@ -28,10 +28,3 @@ pub struct NewUserTest {
     pub name: String,
     pub password: String,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TokenClaims {
-    pub sub: i32,
-    pub iat: usize,
-    pub exp: usize,
-}
