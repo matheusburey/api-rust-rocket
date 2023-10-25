@@ -16,6 +16,6 @@ CREATE TABLE
         start_at TIMESTAMP,
         end_at TIMESTAMP,
         priority VARCHAR(255),
-        user_id UUID,
+        user_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
