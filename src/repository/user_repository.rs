@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use crate::models::user_model::{NewUser, User};
+use crate::{models::user_model::User, types::user::NewUser};
 
 pub struct UserRepository {
     pool: PgPool,

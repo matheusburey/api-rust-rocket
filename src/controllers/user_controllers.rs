@@ -1,8 +1,9 @@
 use crate::config::settings::Settings;
-use crate::models::user_model::{LoginUser, NewUser, User};
+use crate::models::user_model::User;
 use crate::repository::user_repository::UserRepository;
 use crate::types::database::AppState;
-use crate::types::token::ITokenClaims;
+use crate::types::token::{ITokenClaims, LoginUser};
+use crate::types::user::{IResLoginUser, NewUser};
 
 use axum::extract::{Extension, Json, State};
 use axum::{http::StatusCode, response::IntoResponse};
@@ -74,7 +75,10 @@ pub async fn login_user(
                     &EncodingKey::from_secret(Settings::from_env().jwt_secret.as_bytes()),
                 )
                 .unwrap();
-                Ok(serde_json::json!({"status": "success", "token": token}).to_string())
+                Ok(Json(IResLoginUser {
+                    status: "success".to_string(),
+                    token,
+                }))
             } else {
                 Err(StatusCode::BAD_REQUEST)
             }

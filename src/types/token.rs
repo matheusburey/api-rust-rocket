@@ -6,3 +6,9 @@ pub struct ITokenClaims {
     pub iat: usize,
     pub exp: usize,
 }
+
+#[derive(Clone, Deserialize)]
+pub struct LoginUser {
+    pub email: String,
+    pub password: String,
+}
